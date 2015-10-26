@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Caro - Un Un</title>
+  <meta name="author" content="hai nguyen"/>
+  <!--based of tictactoe from Alok Menghrajani-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="text/javascript" src="../jquery-1.7.1.min.js"></script>
+  <script src="react.min.js"></script>
+  <script src="JSXTransformer.js"></script>
+  <style>
+    #chat {
+      position: relative;
+      height: 200px;
+    }
+    #chat #msg_list {
+      position: absolute;
+      top: 0;
+      bottom: 10px;
+      left: 0;
+      right: 0;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      border: 1px solid black;
+      padding: 0px;
+      margin: 10px;
+    }
+    #chat #composer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      margin: 10px;
+    }
+    #chat form {
+      margin: 0;
+      position: relative;
+      width: auto;
+    }
+    #chat i {
+      position: absolute;
+      left: 0;
+      width: auto;
+    }
+    #chat input {
+      border: 1px solid black;
+      position: absolute;
+      left: 0;
+      width: auto;
+      right: 70px;
+    }
+    #chat button {
+      margin-left: 10px;
+      position: absolute;
+      right: 0;
+    }
+    #chat .bubble {
+      -webkit-border-radius: 4px;
+      -moz-border-radius: 4px;
+      border-radius: 4px;
+      padding: 4px;
+    }
+    #chat .me {
+      background: #0674d7;
+      text-align: left;
+      margin: 4px -4px 4px 8px;
+    }
+    #chat .other {
+      background: #6eb7f9;
+      text-align: right;
+      margin: 4px 8px 4px -4px;
+    }
+    #tictactoe td {
+      border: 2px solid black;
+      width: 50px;
+      height: 50px;
+      text-align: center;
+      font-size: 40px;
+    }
+    #tictactoe button {
+      width: 45px;
+      height: 45px;
+      border: 0;
+      background: white;
+    }
+    #tictactoe table {
+      border-collapse: collapse;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-narrow">
+    <div class="menu visible-desktop">
+      <div class="profile">
+      </div>
+    </div>
+
+    <div class="intro">
+      <h1>Caro - Un Un </h1>
+    </div>
+
+    <section>
+      <div id="game" class="row-fluid game">Waiting to connect...</div>
+    </section>
+
+  </div>
+
+  <script type="text/javascript" src="https://cdn.firebase.com/v0/firebase.js"></script>
+  <script type="text/jsx" src="wait_or_join.js"></script>
+  <script type="text/jsx" src="cell.js"></script>
+  <script type="text/jsx" src="tictactoe.js"></script>
+  <script type="text/jsx" src="chat.js"></script>
+  <script type="text/jsx" src="game.js"></script>
+  <script type="text/jsx">
+    /**
+     * @jsx React.DOM
+     */
+
+    function StartGame() {
+      this.started = false;
+
+      // Start Firebase only once the page is visible. I was running into "ghost" users issues
+      // without this.
+
+      // Set the name of the hidden property and the change event for visibility
+      this.hidden = "undefined";
+      var visibilityChange;
+      if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
+        this.hidden = "hidden";
+        visibilityChange = "visibilitychange";
+      } else if (typeof document.mozHidden !== "undefined") {
+        this.hidden = "mozHidden";
+        visibilityChange = "mozvisibilitychange";
+      } else if (typeof document.msHidden !== "undefined") {
+        this.hidden = "msHidden";
+        visibilityChange = "msvisibilitychange";
+      } else if (typeof document.webkitHidden !== "undefined") {
+        this.hidden = "webkitHidden";
+        visibilityChange = "webkitvisibilitychange";
+      }
+
+      // Check if the browser supports addEventListener and Page Visibility API
+      if (typeof document.addEventListener === "undefined" ||
+          typeof this.hidden === "undefined") {
+        this.go();
+      } else {
+        // Handle page visibility change
+        document.addEventListener(visibilityChange, this.handleVisibilityChange.bind(this), false);
+        // Call it once in case we started out visible.
+        this.handleVisibilityChange();
+      }
+    }
+
+    StartGame.prototype.handleVisibilityChange = function() {
+      // if the page is shown, start the game
+      if (!document[this.hidden]) {
+        if (!this.started) {
+          this.started = true;
+          this.go();
+        }
+      }
+    }
+
+    StartGame.prototype.go = function() {
+      console.log("StartGame: go");
+      var firebase = new Firebase('https://chathnguyen.firebaseio.com/');
+      var path = firebase.child('users').push();
+      path.onDisconnect().remove(
+        function(err) {
+          if (err) {
+            console.log("onDisconnect failed: "+err);
+            throw err;
+          }
+          var status = path.set(true);
+          var id = path.name();
+
+          // leak these for debugging purpose
+          game = React.renderComponent(<Game id={id}/>, document.getElementById('game'));
+          caro = new WaitOrJoin(
+            id,
+            firebase,
+            game.onConnect.bind(game),
+            game.onDisconnect.bind(game)
+          );
+        }.bind(this)
+      );
+    }
+    new StartGame();
+  </script>
+  </body>
+</html>
